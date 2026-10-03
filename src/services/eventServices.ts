@@ -45,23 +45,22 @@ export const create = async (data: CreateEventData) => {
         }
 
         // Create the Event
-        const [event_id] = await trx<Event>("events").insert({
-            title,
-            description,
-            event_date,
-            is_public,
-            organizer_id,
-            location_id
-        });
+        const [createdEvent] = await trx<Event>("events")
+            .insert({
+                title,
+                description,
+                event_date,
+                is_public,
+                organizer_id,
+                location_id
+            })
+            .returning("*");
 
-        if (!event_id) {
+        if (!createdEvent) {
             throw new AppError("Failed creating new event", httpCodes.INTERNAL_SERVER_ERROR);
         }
 
-        //console.log("[event_id] returned during insert: is it newEvent_id ???");
-        //console.log("event_id", event_id);
-
-        return await fetchEventById(event_id, undefined, trx);
+        return await fetchEventById(createdEvent.id, undefined, trx);
     });
 };
 
@@ -82,7 +81,12 @@ export const updateEventById = async (data: UpdateEventRequest, event_id: number
     }
 
     // Proceed with the update
-    await database<Event>("events").update(data).where({ id: event_id, organizer_id: user_id });
+    await database<Event>("events")
+        .update({
+            ...data,
+            updated_at: new Date(),
+        })
+        .where({ id: event_id, organizer_id: user_id });
 
     return await fetchEventById(event_id);
 };
@@ -354,7 +358,8 @@ export const addEventParticipation = async(data: Omit<EventParticipant, 'id'>, o
     }
 
     const [newParticipation] = await database<EventParticipant>("event_participants")
-        .insert(data);
+        .insert(data)
+        .returning("*");
 
     if (!newParticipation) {
         throw new AppError("Failed adding Event Participation", httpCodes.INTERNAL_SERVER_ERROR);
@@ -546,17 +551,15 @@ export const addEventTagById = async(data: CreateUserEventTagRequest) => {
     // add or update `updated_at` for tag and return all user_event_tags
     const tag_id = await database.transaction(async (trx) => {
 
-        // upsert location_tag
+        // upsert event_tag
         /// this at least updates `updated_at` field, such that we get to fetch recent tags !!!
-        const [tag_id] = await tagsServices.upsertEventTag({name: tag_name}, trx); // upsert return tag_id on success !!!
-        //console.log("upsertResult", upsertResult);
-        if (!tag_id) {
-            logger.error(`[EVENT-SERVICES] [ADD-EVENT-TAG] failed upserting location_tag`);
+        const [eventTag] = await tagsServices.upsertEventTag({name: tag_name}, trx);
+        if (!eventTag) {
+            logger.error(`[EVENT-SERVICES] [ADD-EVENT-TAG] failed upserting event_tag`);
             throw new AppError("Failed accessing event tag. Please try again.", httpCodes.INTERNAL_SERVER_ERROR);
         }
 
-        //const tag_id = await tagsServices.fetchEventTagId(tag_name, trx);
-        //console.log("tag_id", tag_id);
+        const tag_id = eventTag.id;
 
         /// this at least updates `updated_at` field, such that we get to fetch recent tags !!!
         const [upsertResult2] = await tagsServices.upsertUserEventTag({user_id, event_id, tag_id}, trx);

@@ -58,18 +58,19 @@ export async function up(knex: Knex): Promise<void> {
             table.increments("id").primary();
             table.integer("user_id").unsigned().references("id").inTable("event_participants").onDelete("CASCADE");
             table.integer("event_id").unsigned().references("id").inTable("event_participants").onDelete("CASCADE");
-            // not unique, multiple events can hold same tags
             table.integer("tag_id").unsigned().references("id").inTable("event_tags").onDelete("CASCADE");
+            table.unique(["user_id", "event_id", "tag_id"]);
         })
         ;
 }
 
 export async function down(knex: Knex): Promise<void> {
-    return knex.schema
+    await knex.schema
         .dropTableIfExists("user_event_tags")
         .dropTableIfExists("event_participants")
         .dropTableIfExists("events")
         .dropTableIfExists("user_location_tags")
         .dropTableIfExists("location_tags")
         .dropTableIfExists("event_tags");
+    await knex.raw('DROP TYPE IF EXISTS "event_participants_rsvp_enum";');
 }

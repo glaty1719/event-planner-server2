@@ -26,8 +26,8 @@ export async function seed(knex: Knex): Promise<void> {
 
     const userIds: number[] = [];
     for (const u of users) {
-        const [id] = await knex("users").insert(u);
-        userIds.push(id!);
+        const [user] = await knex("users").insert(u).returning("id");
+        userIds.push(user.id);
     }
 
     // Generate Location Tags and link them via User Location Tags
@@ -39,8 +39,8 @@ export async function seed(knex: Knex): Promise<void> {
 
     const locTagIds: number[] = [];
     for (const lt of locationTags) {
-        const [id] = await knex("location_tags").insert(lt);
-        locTagIds.push(id!);
+        const [ltRecord] = await knex("location_tags").insert(lt).returning("id");
+        locTagIds.push(ltRecord.id);
     }
 
     const userLocTagIds: number[] = [];
@@ -63,8 +63,8 @@ export async function seed(knex: Knex): Promise<void> {
 
     const tagIds: number[] = [];
     for (const t of eventTags) {
-        const [id] = await knex("event_tags").insert(t);
-        tagIds.push(id!);
+        const [tRecord] = await knex("event_tags").insert(t).returning("id");
+        tagIds.push(tRecord.id);
     }
 
     // Generate 6 Public and 6 Private Events across different timelines
@@ -98,12 +98,12 @@ export async function seed(knex: Knex): Promise<void> {
         const organizer_id = userIds[i % userIds.length];
         const location_id = userLocTagIds[i % userLocTagIds.length]; // maps to user_location_tags.tag_id
 
-        const [id] = await knex("events").insert({
+        const [eventRecord] = await knex("events").insert({
             ...template,
             organizer_id,
             location_id
-        });
-        eventIds.push(id!);
+        }).returning("id");
+        eventIds.push(eventRecord.id);
     }
 
     // Add participants to the events (Mix of active participation 'YES' and pending 'AWAITING')
@@ -115,12 +115,12 @@ export async function seed(knex: Knex): Promise<void> {
             const userId = userIds[j % userIds.length];
             const rsvp = rsvps[j];
 
-            const [pId] = await knex("event_participants").insert({
+            const [pRecord] = await knex("event_participants").insert({
                 event_id: eventId,
                 user_id: userId,
                 rsvp: rsvp
-            });
-            participantRecords.push({ id: pId!, eventId });
+            }).returning("id");
+            participantRecords.push({ id: pRecord.id, eventId });
         }
     }
 
@@ -134,6 +134,6 @@ export async function seed(knex: Knex): Promise<void> {
             user_id: p.id,
             event_id: p.id,
             tag_id: tag_id
-        });
+        }).onConflict(["user_id", "event_id", "tag_id"]).ignore();
     }
 }

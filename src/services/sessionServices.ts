@@ -7,11 +7,13 @@ export const createSession = async (data: UserSession, trx?: Knex.Transaction) =
     const { user_id, refresh_token, expires_at } = data;
     const qb = trx ? trx("user_sessions") : database("user_sessions");
 
-    const [session] = await qb.insert({
-        user_id,
-        refresh_token,
-        expires_at,
-    });
+    const [session] = await qb
+        .insert({
+            user_id,
+            refresh_token,
+            expires_at,
+        })
+        .returning("*");
 
     logger.info(`[SESSION-SERVICES] [CREATE] session created: user: ${user_id}`);
     return session;

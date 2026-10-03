@@ -1,12 +1,19 @@
-import {config} from "./config";
+import { config } from "./config";
+import type { Knex } from "knex";
+
 const knexConfig = {
     development: {
-        client: "mysql2",
+        client: "pg",
         connection: {
-            host: config.MYSQL_URI,
-            user: config.MYSQL_USER,
-            password: config.MYSQL_PASSWORD,
-            database: config.MYSQL_DATABASE,
+            host: config.POSTGRES_HOST,
+            port: config.POSTGRES_PORT,
+            user: config.POSTGRES_USER,
+            password: config.POSTGRES_PASSWORD,
+            database: config.POSTGRES_DB,
+        },
+        pool: {
+            min: 2,
+            max: 10,
         },
         migrations: {
             directory: "./database/migrations",

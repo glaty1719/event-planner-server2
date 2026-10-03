@@ -7,10 +7,11 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 const envSchema = z.object({
     // Server & Database
     PORT: z.string().default("17190").transform(Number),
-    MYSQL_ROOT_PASSWORD: z.string("MISSING MYSQL_ROOT_PASSWORD"),
-    MYSQL_DATABASE: z.string("MISSING MYSQL_DATABASE"),
-    MYSQL_USER: z.string("MISSING MYSQL_USER"),
-    MYSQL_PASSWORD: z.string("MISSING MYSQL_PASSWORD"),
+    POSTGRES_DB: z.string().default("event_planner"),
+    POSTGRES_USER: z.string().default("glaty"),
+    POSTGRES_PASSWORD: z.string().default("glaty1917"),
+    POSTGRES_HOST: z.string().default("localhost"),
+    POSTGRES_PORT: z.string().default("5432").transform(Number),
 
     // Cloudinary
     CLOUDINARY_CLOUD_NAME: z.string("MISSING CLOUDINARY_CLOUD_NAME"),
@@ -28,7 +29,6 @@ const envSchema = z.object({
     SENDGRID_API_KEY: z.string("MISSING SENDGRID_API_KEY"),
 
     FRONTEND_ORIGIN: z.url("MISSING FRONTEND_ORIGIN"),
-    MYSQL_URI: z.string("MISSING MYSQL_URI"),
 });
 
 const envServer = envSchema.safeParse(process.env);

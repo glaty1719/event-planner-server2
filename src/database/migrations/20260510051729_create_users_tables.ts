@@ -36,8 +36,9 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-    return knex.schema
+    await knex.schema
         .dropTableIfExists("user_sessions")
         .dropTableIfExists("token_table")
         .dropTableIfExists("users");
+    await knex.raw('DROP TYPE IF EXISTS "users_role_enum";');
 }

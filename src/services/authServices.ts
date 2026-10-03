@@ -45,14 +45,15 @@ export const register = async (data: registerData) => {
     // Use transaction to ensure both user and token are created
     return await database.transaction(async (trx) => {
         // Create the user record
-        const [new_user] = await trx<User>("users")
+        const [createdUser] = await trx<User>("users")
             .insert({
                 email,
                 password: hashed_password,
                 name
-            });
+            })
+            .returning("*");
 
-        if (!new_user) {
+        if (!createdUser) {
             throw new AppError("Registration failed!", httpCodes.INTERNAL_SERVER_ERROR);
         }
         // send email
@@ -62,7 +63,7 @@ export const register = async (data: registerData) => {
         // Create the confirmation token record
         await trx("token_table").insert({
             confirmation_code: generatedOTP,
-            user_id: new_user,
+            user_id: createdUser.id,
             expires_at
         });
 

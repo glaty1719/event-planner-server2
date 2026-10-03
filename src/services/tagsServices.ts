@@ -31,7 +31,8 @@ export const upsertLocationTag = async(data: CreateLocationTagRequest, trx?: Kne
         .onConflict("slug")
         .merge({
             updated_at: new Date()
-        });
+        })
+        .returning("*");
 };
 
 // create or update updated_at timestamp !!!
@@ -39,11 +40,17 @@ export const upsertUserLocationTag = async(data: CreateUserLocationTagRequest, t
     const { user_id, tag_id } = data;
     const queryBuilder = trx ? trx<UserLocationTag>("user_location_tags") : database<UserLocationTag>("user_location_tags");
     return queryBuilder
-        .upsert({
+        .insert({
             user_id,
             tag_id,
             updated_at: new Date()
-        });
+        })
+        .onConflict("tag_id")
+        .merge({
+            user_id,
+            updated_at: new Date()
+        })
+        .returning("*");
 };
 
 // delete user_location_tag
@@ -87,7 +94,8 @@ export const upsertEventTag = async(data: CreateEventTagRequest, trx?: Knex.Tran
         .onConflict("slug")
         .merge({
             updated_at: new Date()
-        });
+        })
+        .returning("*");
 };
 
 // create or update updated_at timestamp !!!
@@ -95,12 +103,14 @@ export const upsertUserEventTag = async(data: CreateUserEventTagData, trx?: Knex
     const { user_id, event_id, tag_id } = data;
     const queryBuilder = trx ? trx<UserEventTag>("user_event_tags") : database<UserEventTag>("user_event_tags");
     return queryBuilder
-        .upsert({
+        .insert({
             user_id,
             tag_id,
             event_id,
-            //updated_at: new Date() HANDLE 'updated_at' field later, ABSENT IN DATABASE NOW, DO I NEED IT ???
-        });
+        })
+        .onConflict(["user_id", "event_id", "tag_id"])
+        .merge()
+        .returning("*");
 };
 
 // fetches events_tag.tag_id
