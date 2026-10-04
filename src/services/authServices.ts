@@ -230,21 +230,21 @@ export const refreshAccessToken = async (refreshToken: string) => {
         throw new AppError("Invalid refresh token", httpCodes.UNAUTHORIZED);
     }
 
-    // Check if the session exists in the database
+    // Fetch session and user concurrently
     // This allows for "Revocation" - if the row is gone, the token is invalid
-    const session = await database<UserSession>("user_sessions")
-        .where({ refresh_token: refreshToken })
-        .first();
+    const [session, user] = await Promise.all([
+        database<UserSession>("user_sessions")
+            .where({ refresh_token: refreshToken })
+            .first(),
+        database<User>("users")
+            .where({ id: decoded.user_id })
+            .first()
+    ]);
 
     if (!session) {
         logger.warn(`[AUTH-SERVICES] [REFRESH] Session not found or revoked`);
         throw new AppError("Session expired or revoked", httpCodes.UNAUTHORIZED);
     }
-
-    // Fetch the user
-    const user = await database<User>("users")
-        .where({ id: decoded.user_id })
-        .first();
 
     if (!user) {
         logger.error(`[AUTH-SERVICES] [REFRESH] User not found for session: ${session.user_id}`);

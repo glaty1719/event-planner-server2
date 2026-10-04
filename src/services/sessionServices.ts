@@ -5,9 +5,9 @@ import { Knex } from "knex";
 
 export const createSession = async (data: UserSession, trx?: Knex.Transaction) => {
     const { user_id, refresh_token, expires_at } = data;
-    const qb = trx ? trx("user_sessions") : database("user_sessions");
+    const qb = trx || database;
 
-    const [session] = await qb
+    const [session] = await qb("user_sessions")
         .insert({
             user_id,
             refresh_token,
@@ -29,9 +29,9 @@ export const deleteSessionByToken = async (refresh_token: string) => {
 
 // delete sessions by userId
 export const deleteSessionsByUserId = async (user_id: number, trx?: Knex.Transaction) => {
-    const qb = trx ? trx("user_sessions") : database("user_sessions");
+    const qb = trx || database;
 
-    await qb.where({ user_id: user_id }).del();
+    await qb("user_sessions").where({ user_id: user_id }).del();
 
     logger.info(`[SESSION-SERVICES] [DELETE BY USER ID] user sessions deleted`);
 };

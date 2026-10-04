@@ -191,12 +191,12 @@ export const fetchAllEvents = async (user_id: number, params: AllEventsQueryPara
     const offset = (page - 1) * limit;
 
     // Initialize the Base Query
-    const query = database("events");
+    let query = database("events");
 
     // Build Core Joins & Base Tab Filters
     if (isOrganized) {
         // Select all organized events (where the user is the organizer)
-        query
+        query = query
             .leftJoin("location_tags", "events.location_id", "location_tags.id")
             .join("users", "events.organizer_id", "users.id")
             .where("events.organizer_id", user_id);
@@ -204,37 +204,39 @@ export const fetchAllEvents = async (user_id: number, params: AllEventsQueryPara
     else if (!isParticipating) {
         // Broad Discover/All events view (typically just public events by default,
         // but structured here to align with your original conditional block)
-        query
+        query = query
             .leftJoin("location_tags", "events.location_id", "location_tags.id")
             .join("users", "events.organizer_id", "users.id");
     }
     else {
         // Select all participating events
-        query.join("event_participants", "events.id", "event_participants.event_id")
+        query = query
+            .join("event_participants", "events.id", "event_participants.event_id")
             .leftJoin("location_tags", "events.location_id", "location_tags.id")
             .join("users", "events.organizer_id", "users.id")
             .where("event_participants.user_id", user_id);
 
         if (isRequested) {
-            query.andWhere("event_participants.rsvp", "AWAITING");
+            query = query.andWhere("event_participants.rsvp", "AWAITING");
         } else {
-            query.andWhereNot("event_participants.rsvp", "AWAITING");
+            query = query.andWhereNot("event_participants.rsvp", "AWAITING");
         }
     }
 
     // Apply Public / Private visibility conditionally
     // If isPublic is undefined, we don't attach this constraint, effectively returning "All"
     if (typeof isPublic === 'boolean') {
-        query.andWhere("events.is_public", isPublic);
+        query = query.andWhere("events.is_public", isPublic);
     } else if (!isOrganized && !isParticipating && isPublic === undefined) {
         // Fallback guard: If someone browses an open global discovery feed without choosing
         // a filter, ensure they aren't accidentally shown other users' private events.
-        query.andWhere("events.is_public", true);
+        query = query.andWhere("events.is_public", true);
     }
 
     // Date-filtering
-    query.where("events.event_date", ">=", start_date);
-    query.where("events.event_date", "<=", end_date);
+    query = query
+        .where("events.event_date", ">=", start_date)
+        .where("events.event_date", "<=", end_date);
 
     // Execute count and data fetch in parallel
     const [totalResult, events] = await Promise.all([
@@ -280,9 +282,9 @@ export const fetchAllEvents = async (user_id: number, params: AllEventsQueryPara
  * 3. The user is a participant.
  */
 export const fetchEventById = async (id: number, user_id?: number, trx?: Knex.Transaction) => {
-    const queryBuilder = trx ? trx("events") : database("events");
+    const db = trx || database;
 
-    const query = queryBuilder
+    let query = db("events")
         .select<EventWithLocationAndOrganizer>(
             "events.id",
             "events.title",
@@ -300,7 +302,7 @@ export const fetchEventById = async (id: number, user_id?: number, trx?: Knex.Tr
     // Apply authorization filter only if user_id is provided (API calls)
     // Internal calls (like after creation) pass undefined to bypass this check
     if (user_id) {
-        query.andWhere(function() {
+        query = query.andWhere(function() {
             this.where("events.is_public", true)
                 .orWhere("events.organizer_id", user_id)
                 .orWhereExists(function() {
@@ -444,7 +446,7 @@ export const fetchEventParticipationById = async(data: Omit<EventParticipant, 'i
     //console.log("eventParticipation", eventParticipation);
     if(!eventParticipation) {
         logger.warn(`[EVENT-SERVICES] [FETCH-EVENT-PARTICIPATION] failed retrieving event participation for user: ${data.user_id} event:${data.event_id}`);
-        //console.log("i am here");
+        //console.log("I am here");
         return { rsvp: undefined };
     }
 
@@ -465,7 +467,7 @@ export const fetchAllEventParticipationByEventId = async(event_id: number) => { 
         .where("event_participants.event_id", event_id);
 
     // Execute count and data fetch in parallel
-    const [totalResult, participants] = await Promise.all([
+    const [_totalResult, participants] = await Promise.all([
         query.clone().count("event_participants.user_id as total").first(),
         query.clone()
             .select<EventParticipationResponse[]>(
@@ -528,7 +530,7 @@ export const removeEventParticipationById = async(
         .where({ event_id, user_id })
         .del();
 
-    /*// cleanup user_event_tags for the id if any THIS BLOCK SHALL BE NOT NEEDED AFTERWARDS, AS user_event_tags has been updated to reference event_participants !!!
+    /*// cleanup user_event_tags for the id if any THIS BLOCK SHALL BE NOT NEEDED AFTERWARD, AS user_event_tags has been updated to reference event_participants !!!
     // REMOVE THIS LATER ON MIGRATION
     await database("user_event_tags")
         .where({event_id, user_id})
@@ -572,7 +574,7 @@ export const addEventTagById = async(data: CreateUserEventTagRequest) => {
 
     });
     // return event_tag
-    return database("event_tags")
+    return await database("event_tags")
         //.join("user_event_tags", "event_tags.id", "=", "user_event_tags.tag_id")
         .join("user_event_tags", "event_tags.id", "user_event_tags.tag_id")
         .where("user_event_tags.user_id", user_id)
@@ -607,7 +609,7 @@ export const fetchAllEventTagsById = async(event_id: number, user_id: number, pa
     // HANDLE LATER
 
     // return event tags ( tags set by organizer or participant)
-    return database("event_tags")
+    return await database("event_tags")
         //.join("user_event_tags", "event_tags.id", "=", "user_event_tags.tag_id")
         .join("user_event_tags", "event_tags.id", "user_event_tags.tag_id")
         .where("user_event_tags.user_id", User_Id)
